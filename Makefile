@@ -262,12 +262,9 @@ else ifeq ($(platform), ps2)
    TARGET := $(TARGET_NAME)_libretro_$(platform).$(EXT)
    CC = mips64r5900el-ps2-elf-gcc$(EXE_EXT)
    AR = mips64r5900el-ps2-elf-ar$(EXE_EXT)
-   CFLAGS += -DHAVE_STRLWR -DPS2 -G0 -ffast-math -DABGR1555 -DNO_FAST_SQRT -DMEMORY_LOW
+   CFLAGS += -DHAVE_STRLWR -DPS2 -G0 -ffast-math -DABGR1555 -DNO_FAST_SQRT -DMEMORY_LOW -DHAVE_LOW_MEMORY
    STATIC_LINKING = 1
    HAVE_LOW_MEMORY = 1
-   # rthreads pulls in ps2sdkapi.h, which is not on the include path here,
-   # and the EE is single-core with very little RAM to spare for per-thread
-   # renderer state.  Threaded rendering is off.
    HAVE_THREADS = 0
 
 # PSP1
