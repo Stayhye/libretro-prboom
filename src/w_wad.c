@@ -137,29 +137,9 @@ char *AddDefaultExtension(char *path, const char *ext)
 // proff - changed using pointer to wadfile_info_t
 static void W_AddFile(wadfile_info_t *wadfile)
 // killough 1/31/98: static, const
-
-#ifdef __PS2__
-   // Force reading the entire WAD into memory to avoid CDVD streaming lockups
-   wadfile->length = filestream_get_size(wadfile->handle);
-   wadfile->data = malloc((size_t)wadfile->length);
-   if (wadfile->data)
-   {
-      int64_t bytes_read = filestream_read(wadfile->handle, wadfile->data, (size_t)wadfile->length);
-      filestream_close(wadfile->handle);
-      wadfile->handle = NULL; // Close handle so it never reads from CDVD again
-      if (bytes_read != wadfile->length)
-      {
-         I_Error("W_AddFile: Failed to fully read WAD from CDVD into RAM");
-      }
-   }
-   else
-   {
-      I_Error("W_AddFile: Out of memory pre-caching WAD from CDVD");
-   }
-#endif
 {
    size_t wadfile_name_len;
-   wadinfo_t   header;
+   wadinfo_t    header;
    lumpinfo_t* lump_p;
    unsigned    i;
    int         length;
@@ -207,6 +187,69 @@ static void W_AddFile(wadfile_info_t *wadfile)
       free(fileinfo2free);
       return;
    }
+
+   // open the file and add to directory
+   wadfile->handle = filestream_open(wadfile->name,
+         RETRO_VFS_FILE_ACCESS_READ,
+         RETRO_VFS_FILE_ACCESS_HINT_NONE);
+
+   wadfile_name_len = strlen(wadfile->name);
+
+   if (!wadfile->handle)
+   {
+      if (  wadfile_name_len <= 4 ||      // add error check -- killough
+            (strcasecmp(wadfile->name + wadfile_name_len - 4, ".lmp" ) &&
+             strcasecmp(wadfile->name + wadfile_name_len - 4, ".gwa" ) )
+         )
+         I_Error("W_AddFile: couldn't open %s",wadfile->name);
+      return;
+   }
+
+#ifdef __PS2__
+   // Keep wadfile->data NULL on PS2 so lumps stream on-demand, avoiding 
+   // single-allocation heap exhaustion freezes.
+   wadfile->length = filestream_get_size(wadfile->handle);
+   wadfile->data = NULL;
+   wadfile->mmapped = 0;
+#else
+#ifndef MEMORY_LOW
+   // precache into memory instead of reading from disk
+   wadfile->length = filestream_get_size(wadfile->handle);
+
+   if (wadfile->length > (int64_t)0x7fffffff)
+      I_Error("W_AddFile: %s is %lld bytes; the wad format cannot describe "
+              "a file past 2GB", wadfile->name, (long long)wadfile->length);
+   wadfile->data    = NULL;
+#ifdef HAVE_MMAP
+   wadfile->mmapped = 0;
+   if (prboom_mmap_wads && wadfile->length > 0)
+   {
+      const char *rp = filestream_get_path(wadfile->handle);
+      if (rp)
+      {
+         int fd = open(rp, O_RDONLY);
+         if (fd >= 0)
+         {
+            void *m = mmap(NULL, (size_t)wadfile->length,
+                            PROT_READ, MAP_PRIVATE, fd, 0);
+            close(fd);
+            if (m != MAP_FAILED)
+            {
+               wadfile->data    = (unsigned char *)m;
+               wadfile->mmapped = 1;
+            }
+         }
+      }
+   }
+#endif
+   if (!wadfile->data && wadfile->length > 0)
+   {
+      wadfile->data = malloc((size_t)wadfile->length);
+      if (wadfile->data)
+         filestream_read(wadfile->handle, wadfile->data, (size_t)wadfile->length);
+   }
+#endif
+#endif
 
    // open the file and add to directory
    wadfile->handle = filestream_open(wadfile->name,
