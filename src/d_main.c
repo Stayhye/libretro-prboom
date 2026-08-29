@@ -785,6 +785,12 @@ void D_AddFile (const char *file, wad_source_t source)
    * open under the name the IWAD scan identified them by.  The
    * default extension is for the bare stem form, `-file foo`. */
   wad_filename = strcpy(malloc(file_len + 5), file);
+#ifdef __PS2__
+  // Standardize backslashes to forward slashes for PS2 VFS path handling
+  for (int i = 0; wad_filename[i]; i++) {
+     if (wad_filename[i] == '\\') wad_filename[i] = '/';
+  }
+#endif
   if (!path_is_valid(wad_filename))
     AddDefaultExtension(wad_filename, ".wad");
   wadfiles[numwadfiles].name = wad_filename;
@@ -815,7 +821,6 @@ void D_AddFile (const char *file, wad_source_t source)
     free(gwa_filename);
   }
 }
-
 // killough 10/98: support -dehout filename
 // cph - made const, don't cache results
 static const char *D_dehout(void)
