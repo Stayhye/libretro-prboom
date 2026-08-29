@@ -137,6 +137,26 @@ char *AddDefaultExtension(char *path, const char *ext)
 // proff - changed using pointer to wadfile_info_t
 static void W_AddFile(wadfile_info_t *wadfile)
 // killough 1/31/98: static, const
+
+#ifdef __PS2__
+   // Force reading the entire WAD into memory to avoid CDVD streaming lockups
+   wadfile->length = filestream_get_size(wadfile->handle);
+   wadfile->data = malloc((size_t)wadfile->length);
+   if (wadfile->data)
+   {
+      int64_t bytes_read = filestream_read(wadfile->handle, wadfile->data, (size_t)wadfile->length);
+      filestream_close(wadfile->handle);
+      wadfile->handle = NULL; // Close handle so it never reads from CDVD again
+      if (bytes_read != wadfile->length)
+      {
+         I_Error("W_AddFile: Failed to fully read WAD from CDVD into RAM");
+      }
+   }
+   else
+   {
+      I_Error("W_AddFile: Out of memory pre-caching WAD from CDVD");
+   }
+#endif
 {
    size_t wadfile_name_len;
    wadinfo_t   header;
