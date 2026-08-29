@@ -131,6 +131,16 @@ bool Z_Init(void)
    for (i = 0; i < PU_MAX; i++)
       blockbytag[i] = NULL;
 
+#ifdef __PS2__
+   // Clamp zone memory allocation pool to 4MB for PS2 hardware limits
+   // If your build uses a global zone size variable, force it here:
+   extern int zonebytes;
+   if (zonebytes > 4 * 1024 * 1024)
+   {
+      zonebytes = 4 * 1024 * 1024;
+   }
+#endif
+
    return true;
 }
 
