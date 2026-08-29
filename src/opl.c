@@ -365,113 +365,28 @@ static void OPL_AdvanceTime(unsigned int nsamples)
 
 }
 
-/* Render `native_len` mono samples at the native chip rate, advancing the
- * MIDI/MUS event queue (also clocked at the native rate) between callbacks.
- * dbopl zero-fills and accumulates into the destination itself, so the chip
- * renders straight into the resample buffer -- no intermediate copy, and the
- * raw 32-bit sum is preserved for the FIR (gain/quantization happen once,
- * at emission). */
-static void OPL_Render_Native (int32_t *buffer, unsigned native_len)
+static void FillBuffer(int16_t *buffer, unsigned int nsamples)
 {
-    unsigned int filled = 0;
+    unsigned int i;
+    int sampval;
 
-    // Repeatedly call the OPL emulator update function until the buffer is
-    // full.
+     Chip__GenerateBlock2(&opl_chip, nsamples, (int32_t *)mix_buffer);
 
-    while (filled < native_len)
+    // Mix into the destination buffer, doubling up into stereo.
+
+    for (i=0; i<nsamples; ++i)
     {
-        unsigned int next_callback_time;
-        unsigned int nsamples;
-
-
-        // Work out the time until the next callback waiting in
-        // the callback queue must be invoked.  We can then fill the
-        // buffer with this many samples.
-
-        if (opl_paused || OPL_Queue_IsEmpty(callback_queue))
-        {
-            nsamples = native_len - filled;
-        }
-        else
-        {
-            next_callback_time = OPL_Queue_Peek(callback_queue) + pause_offset;
-
-            nsamples = next_callback_time - current_time;
-
-            if (nsamples > native_len - filled)
-            {
-                nsamples = native_len - filled;
-            }
-        }
-
-
-        // Add emulator output to buffer (mono, native rate, raw chip sum).
-
-        Chip__GenerateBlock2(&opl_chip, nsamples, buffer + filled);
-        filled += nsamples;
-
-        // Invoke callbacks for this point in time.
-
-        OPL_AdvanceTime(nsamples);
+        sampval = mix_buffer[i] * mus_opl_gain / 50;
+        // clip
+        if (sampval > 32767)
+            sampval = 32767;
+        else if (sampval < -32768)
+            sampval = -32768;
+        buffer[i * 2] = (int16_t) sampval;
+        buffer[i * 2 + 1] = (int16_t) sampval;
     }
 }
 
-/* Advance the resampler one output frame: ensure the tap window is buffered
- * (generating native-rate chip samples on demand), apply the polyphase
- * windowed-sinc filter, step the read cursor, and return the filtered sample
- * in raw chip units -- mus_opl_gain is NOT applied here.  Shared by the s16
- * and float emitters below so the cursor arithmetic exists exactly once. */
-static float OPL_Resample_Frame (void)
-{
-    int ridx = opl_nsrc_pos + (int)(opl_rs_frac >> 16);
-
-    // Ensure the filter's history (ridx-(NZ-1)) and look-ahead (ridx+NZ)
-    // are both inside the source buffer.
-    while (ridx + OPL_RS_NZ >= opl_nsrc_have)
-    {
-        int keep_from = ridx - (OPL_RS_NZ - 1);
-
-        if (keep_from > 0)
-        {
-            int rem = opl_nsrc_have - keep_from;
-            int i;
-            if (rem < 0)
-                rem = 0;
-            // Retain NZ-1 samples of history plus the unconsumed tail so
-            // the filter taps and interpolation stay seamless.
-            for (i = 0; i < rem; i++)
-                opl_nsrc[i] = opl_nsrc[keep_from + i];
-            opl_nsrc_pos   = ridx - keep_from;   // fold integer part, keep frac
-            opl_rs_frac   &= 0xFFFF;
-            opl_nsrc_have  = rem;
-        }
-
-        // Append-generate native samples; the chip is continuous, so the
-        // new block abuts the retained tail with no discontinuity.
-        OPL_Render_Native(opl_nsrc + opl_nsrc_have,
-                          (unsigned)(OPL_NSRC_FRAMES - opl_nsrc_have));
-        opl_nsrc_have = OPL_NSRC_FRAMES;
-        ridx = opl_nsrc_pos + (int)(opl_rs_frac >> 16);
-    }
-
-    {
-        const float *k = opl_rs_tab[(opl_rs_frac >> OPL_RS_PSHIFT) & (OPL_RS_NP - 1)];
-        int   base = ridx - (OPL_RS_NZ - 1);
-        float acc  = 0.0f;
-        int   t;
-
-        for (t = 0; t < OPL_RS_NTAPS; t++)
-        {
-            int j = base + t;
-            // zero-pad history before the stream start (startup transient)
-            if (j >= 0)
-                acc += (float)opl_nsrc[j] * k[t];
-        }
-
-        opl_rs_frac += opl_rs_step;
-        return acc;
-    }
-}
 
 void OPL_Render_Samples (void *dest, unsigned buffer_len)
 {
