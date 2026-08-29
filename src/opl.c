@@ -44,6 +44,16 @@ static int init_stage_reg_writes = 1;
 
 unsigned int opl_sample_rate = 22050;
 
+static int32_t mix_buffer[4096]; // Native mixing buffer for OPL blocks
+
+#ifndef OPL_Resample_Frame
+static float OPL_Resample_Frame(void)
+{
+   // Fallback or placeholder resample frame implementation if un-macroed
+   return 0.0f;
+}
+#endif
+
 /* The OPL chip is emulated at its true hardware rate (OPLRATE = 14.318 MHz
  * / 288 ~= 49716 Hz) so that envelopes, the LFO, vibrato/tremolo and phase
  * accumulators advance exactly per-sample as they do on real silicon, then
