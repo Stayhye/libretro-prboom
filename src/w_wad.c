@@ -218,7 +218,7 @@ static void W_AddFile(wadfile_info_t *wadfile)
    if (wadfile->length > (int64_t)0x7fffffff)
       I_Error("W_AddFile: %s is %lld bytes; the wad format cannot describe "
               "a file past 2GB", wadfile->name, (long long)wadfile->length);
-   wadfile->data   = NULL;
+   wadfile->data    = NULL;
 #ifdef HAVE_MMAP
    wadfile->mmapped = 0;
    /* When the core option is enabled, memory-map the WAD so only the lumps
@@ -229,7 +229,15 @@ static void W_AddFile(wadfile_info_t *wadfile)
     * PROT_READ: WAD bytes are only ever a memcpy source (W_ReadLump / the
     * directory parse), never written in place, and the memcache hands lumps
     * back as private copies. */
-   if (prboom_mmap_wads && wadfile->length > 0)
+   
+   // Bypass mmap entirely on PS2 to avoid TLB misses and VFS path failures
+#ifdef __PS2__
+   int use_mmap = 0;
+#else
+   int use_mmap = prboom_mmap_wads;
+#endif
+
+   if (use_mmap && wadfile->length > 0)
    {
       const char *rp = filestream_get_path(wadfile->handle);
       if (rp)
@@ -238,7 +246,7 @@ static void W_AddFile(wadfile_info_t *wadfile)
          if (fd >= 0)
          {
             void *m = mmap(NULL, (size_t)wadfile->length,
-                           PROT_READ, MAP_PRIVATE, fd, 0);
+                            PROT_READ, MAP_PRIVATE, fd, 0);
             close(fd);
             if (m != MAP_FAILED)
             {
