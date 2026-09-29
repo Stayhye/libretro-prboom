@@ -269,8 +269,15 @@ else ifeq ($(platform), ps2)
    STATIC_LINKING_LINK=1
    PLATFORM_DEFINES := -DPS2 -DVIDEO_ABGR1555 -DIOAPI_NO_64
    FRONTEND_SUPPORTS_RGB565 = 0
+   CFLAGS += -DHAVE_STRLWR -DPS2 -G0 -ffast-math -DABGR1555 -DNO_FAST_SQRT
+   # retro_atomic.h's EE backend masks interrupts around a read-modify-write
+   # through ps2sdk's DIntr()/EIntr(), so it needs <kernel.h>; this build has
+   # no ps2sdk include path, and the header names FORCE_VOLATILE as the
+   # escape hatch for exactly that.  Sound here because the EE has one core
+   # and this target builds with no threads at all -- the two lines below
+   # belong together, and giving PS2 threads means putting ps2sdk on the
+   # include path and dropping this define in the same change.
    CFLAGS += -DRETRO_ATOMIC_FORCE_VOLATILE
-   STATIC_LINKING = 1
    HAVE_LOW_MEMORY = 1
    HAVE_THREADS = 0
 
