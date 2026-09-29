@@ -258,28 +258,35 @@ else ifneq (,$(filter $(platform), ps3 psl1ght))
 
 # PS2
 else ifeq ($(platform), ps2)
-   TARGET := $(TARGET_NAME)_libretro_$(platform).a
-   CC = mips64r5900el-ps2-elf-gcc
-   CXX = mips64r5900el-ps2-elf-g++
-   AR = mips64r5900el-ps2-elf-ar
-   CFLAGS += -O3 -march=r5900 -mtune=r5900 -G0 -ffast-math -fomit-frame-pointer -DPS2 -DABGR1555 -fno-expensive-optimizations
-   CXXFLAGS += -O3 -march=r5900 -mtune=r5900 -G0 -ffast-math -fomit-frame-pointer -DPS2 -DABGR1555 -fno-expensive-optimizations
-   LDFLAGS += 
-   STATIC_LINKING=1
-   STATIC_LINKING_LINK=1
-   PLATFORM_DEFINES := -DPS2 -DVIDEO_ABGR1555 -DIOAPI_NO_64
-   FRONTEND_SUPPORTS_RGB565 = 0
-   CFLAGS += -DHAVE_STRLWR -DPS2 -G0 -ffast-math -DABGR1555 -DNO_FAST_SQRT
-   # retro_atomic.h's EE backend masks interrupts around a read-modify-write
-   # through ps2sdk's DIntr()/EIntr(), so it needs <kernel.h>; this build has
-   # no ps2sdk include path, and the header names FORCE_VOLATILE as the
-   # escape hatch for exactly that.  Sound here because the EE has one core
-   # and this target builds with no threads at all -- the two lines below
-   # belong together, and giving PS2 threads means putting ps2sdk on the
-   # include path and dropping this define in the same change.
-   CFLAGS += -DRETRO_ATOMIC_FORCE_VOLATILE
-   HAVE_LOW_MEMORY = 1
-   HAVE_THREADS = 0
+    TARGET := $(TARGET_NAME)_libretro_$(platform).a
+    CC     := mips64r5900el-ps2-elf-gcc
+    CXX    := mips64r5900el-ps2-elf-g++
+    AR     := mips64r5900el-ps2-elf-ar
+
+    # Shared architecture and optimization flags
+    PS2_FLAGS := -O3 -march=r5900 -mtune=r5900 -G0 -ffast-math -fomit-frame-pointer -fno-expensive-optimizations
+
+    CFLAGS   += $(PS2_FLAGS)
+    CXXFLAGS += $(PS2_FLAGS)
+
+    # Platform definitions
+    # Note: retro_atomic.h's EE backend masks interrupts via ps2sdk's DIntr()/EIntr(), 
+    # requiring <kernel.h>. Since this build lacks the ps2sdk include path and uses 
+    # no threads (single-core EE), -DRETRO_ATOMIC_FORCE_VOLATILE acts as the escape hatch.
+    # (Adding PS2 threads requires adding ps2sdk to the include path and removing this define).
+    PLATFORM_DEFINES := -DPS2 \
+                        -DABGR1555 \
+                        -DVIDEO_ABGR1555 \
+                        -DIOAPI_NO_64 \
+                        -DHAVE_STRLWR \
+                        -DNO_FAST_SQRT \
+                        -DRETRO_ATOMIC_FORCE_VOLATILE
+
+    STATIC_LINKING           := 1
+    STATIC_LINKING_LINK      := 1
+    FRONTEND_SUPPORTS_RGB565 := 0
+    HAVE_LOW_MEMORY          := 1
+    HAVE_THREADS             := 0
 
 # PSP1
 else ifeq ($(platform), psp1)
