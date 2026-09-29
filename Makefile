@@ -273,14 +273,15 @@ else ifeq ($(platform), ps2)
     # Note: retro_atomic.h's EE backend masks interrupts via ps2sdk's DIntr()/EIntr(), 
     # requiring <kernel.h>. Since this build lacks the ps2sdk include path and uses 
     # no threads (single-core EE), -DRETRO_ATOMIC_FORCE_VOLATILE acts as the escape hatch.
-    # (Adding PS2 threads requires adding ps2sdk to the include path and removing this define).
     PLATFORM_DEFINES := -DPS2 \
                         -DABGR1555 \
                         -DVIDEO_ABGR1555 \
                         -DIOAPI_NO_64 \
                         -DHAVE_STRLWR \
                         -DNO_FAST_SQRT \
-                        -DRETRO_ATOMIC_FORCE_VOLATILE
+                        -DRETRO_ATOMIC_FORCE_VOLATILE \
+                        -D__linux__=0 \
+                        -DHAVE_FALLOCATE=0
 
     STATIC_LINKING           := 1
     STATIC_LINKING_LINK      := 1
