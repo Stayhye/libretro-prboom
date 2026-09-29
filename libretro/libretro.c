@@ -4221,7 +4221,7 @@ char* I_FindFile(const char* wfname, const char* ext)
      {
         sprintf(prboom_system_dir, "%s%c%s", system_dir, DIR_SLASH, "prboom");
         p = FindFileInDir(prboom_system_dir, wfname, ext);
-        free(prboom_system_dir);
+        Z_Free(prboom_system_dir);
         prboom_system_dir = NULL;
         if (!p)
            p = FindFileInDir(system_dir, wfname, ext);
