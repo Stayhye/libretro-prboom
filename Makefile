@@ -258,18 +258,17 @@ else ifneq (,$(filter $(platform), ps3 psl1ght))
 
 # PS2
 else ifeq ($(platform), ps2)
-	EXT=a
-   TARGET := $(TARGET_NAME)_libretro_$(platform).$(EXT)
-   CC = mips64r5900el-ps2-elf-gcc$(EXE_EXT)
-   AR = mips64r5900el-ps2-elf-ar$(EXE_EXT)
-   CFLAGS += -DHAVE_STRLWR -DPS2 -G0 -ffast-math -DABGR1555 -DNO_FAST_SQRT
-   # retro_atomic.h's EE backend masks interrupts around a read-modify-write
-   # through ps2sdk's DIntr()/EIntr(), so it needs <kernel.h>; this build has
-   # no ps2sdk include path, and the header names FORCE_VOLATILE as the
-   # escape hatch for exactly that.  Sound here because the EE has one core
-   # and this target builds with no threads at all -- the two lines below
-   # belong together, and giving PS2 threads means putting ps2sdk on the
-   # include path and dropping this define in the same change.
+   TARGET := $(TARGET_NAME)_libretro_$(platform).a
+   CC = mips64r5900el-ps2-elf-gcc
+   CXX = mips64r5900el-ps2-elf-g++
+   AR = mips64r5900el-ps2-elf-ar
+   CFLAGS += -O3 -march=r5900 -mtune=r5900 -G0 -ffast-math -fomit-frame-pointer -DPS2 -DABGR1555 -fno-expensive-optimizations
+   CXXFLAGS += -O3 -march=r5900 -mtune=r5900 -G0 -ffast-math -fomit-frame-pointer -DPS2 -DABGR1555 -fno-expensive-optimizations
+   LDFLAGS += 
+   STATIC_LINKING=1
+   STATIC_LINKING_LINK=1
+   PLATFORM_DEFINES := -DPS2 -DVIDEO_ABGR1555 -DIOAPI_NO_64
+   FRONTEND_SUPPORTS_RGB565 = 0
    CFLAGS += -DRETRO_ATOMIC_FORCE_VOLATILE
    STATIC_LINKING = 1
    HAVE_LOW_MEMORY = 1
